@@ -6,11 +6,14 @@ extends Node2D
 
 signal bumped(strength: float)
 
-const HEADINGS := 32
-const FRAME := 24
-const RADIUS := 4.5
-const GRAVITY := 260.0
-const SLOPE_GRAVITY := 150.0
+const HEADINGS := 64
+const FRAME := 40
+## World scale: tracks are 2.4x the original 320x240 design, so every speed,
+## distance and acceleration below is expressed as (original value) * U.
+const U := 2.4
+const RADIUS := 8.0
+const GRAVITY := 260.0 * U
+const SLOPE_GRAVITY := 150.0 * U
 const NITRO_TIME := 1.3
 
 var track: Track
@@ -21,8 +24,8 @@ var is_player := false
 var controller: Object  # PlayerInput or AIDriver: has update(truck, delta)
 
 # Stats (from upgrades).
-var top_speed := 62.0
-var accel := 55.0
+var top_speed := 62.0 * U
+var accel := 55.0 * U
 var grip := 2.8
 var turn_rate := 3.7
 var shocks := 0
@@ -68,8 +71,8 @@ func setup(p_track: Track, p_team: String, p_name: String, ups: Dictionary, nitr
 
 
 func apply_upgrades(ups: Dictionary) -> void:
-	top_speed = 62.0 + 5.0 * ups.get("speed", 0)
-	accel = 50.0 + 10.0 * ups.get("accel", 0)
+	top_speed = (66.0 + 5.0 * ups.get("speed", 0)) * U
+	accel = (50.0 + 10.0 * ups.get("accel", 0)) * U
 	grip = 2.6 + 0.65 * ups.get("tires", 0)
 	turn_rate = 3.6 + 0.08 * ups.get("tires", 0)
 	shocks = ups.get("shocks", 0)
@@ -81,17 +84,17 @@ func _ready() -> void:
 	_shadow.modulate = Color(0, 0, 0, 0.45)
 	add_child(_shadow)
 	_dust = CPUParticles2D.new()
-	_dust.amount = 16
+	_dust.amount = 24
 	_dust.lifetime = 0.5
 	_dust.emitting = false
 	_dust.local_coords = false
 	_dust.direction = Vector2(0, -1)
 	_dust.spread = 50.0
-	_dust.gravity = Vector2(0, -6)
-	_dust.initial_velocity_min = 4.0
-	_dust.initial_velocity_max = 12.0
-	_dust.scale_amount_min = 1.0
-	_dust.scale_amount_max = 2.0
+	_dust.gravity = Vector2(0, -6) * U
+	_dust.initial_velocity_min = 4.0 * U
+	_dust.initial_velocity_max = 12.0 * U
+	_dust.scale_amount_min = 2.0
+	_dust.scale_amount_max = 4.0
 	_dust.color = Color8(214, 170, 120, 200)
 	_dust.color_ramp = _fade_ramp()
 	add_child(_dust)
@@ -118,11 +121,11 @@ func _ready() -> void:
 
 
 static func _make_shadow() -> Texture2D:
-	var img := Image.create(14, 7, false, Image.FORMAT_RGBA8)
-	for y in 7:
-		for x in 14:
-			var dx := (x - 6.5) / 7.0
-			var dy := (y - 3.0) / 3.5
+	var img := Image.create(28, 14, false, Image.FORMAT_RGBA8)
+	for y in 14:
+		for x in 28:
+			var dx := (x - 13.5) / 14.0
+			var dy := (y - 6.5) / 7.0
 			if dx * dx + dy * dy <= 1.0:
 				img.set_pixel(x, y, Color.WHITE)
 	return ImageTexture.create_from_image(img)
@@ -185,7 +188,7 @@ func physics_step(delta: float) -> void:
 				vf *= exp(-1.6 * delta)
 
 		# Steering: works even when slow so a stuck truck can turn around.
-		var steer_factor := clampf(0.4 + absf(vf) / 45.0, 0.4, 1.0)
+		var steer_factor := clampf(0.4 + absf(vf) / (45.0 * U), 0.4, 1.0)
 		heading = wrapf(heading + in_steer * turn_rate * steer_factor * delta, -PI, PI)
 
 		# Throttle.
@@ -201,8 +204,8 @@ func physics_step(delta: float) -> void:
 			vf = lerpf(vf, top, 1.0 - exp(-1.8 * delta))
 
 		# Slope: uphill slows, downhill speeds up.
-		var ahead := track.height_at(position + fwd * 2.0) - track.height_at(position - fwd * 2.0)
-		var slope_acc := SLOPE_GRAVITY * (ahead / 4.0) * signf(vf if absf(vf) > 1.0 else 1.0)
+		var ahead := track.height_at(position + fwd * 2.0 * U) - track.height_at(position - fwd * 2.0 * U)
+		var slope_acc := SLOPE_GRAVITY * (ahead / (4.0 * U)) * signf(vf if absf(vf) > 1.0 else 1.0)
 		if slope_acc > 0.0:
 			# Uphill never fully cancels the engine, so a slow truck can still climb.
 			slope_acc = minf(slope_acc, accel * skill * 0.6)
@@ -228,10 +231,10 @@ func physics_step(delta: float) -> void:
 		if vn < 0.0:
 			velocity -= nrm * vn * 1.45
 			velocity *= 0.9
-			if -vn > 20.0:
+			if -vn > 20.0 * U:
 				bumped.emit(-vn)
 				if is_player:
-					Audio.play("bump", -6.0 + minf(6.0, -vn * 0.08), randf_range(0.9, 1.1), 0.15)
+					Audio.play("bump", -6.0 + minf(6.0, -vn * 0.08 / U), randf_range(0.9, 1.1), 0.15)
 
 	# Vertical motion.
 	var g := track.height_at(position)
@@ -243,7 +246,7 @@ func physics_step(delta: float) -> void:
 	else:
 		var ground_vz := (g - ground_h) / delta
 		var ballistic := prev_alt + vz * delta - 0.5 * GRAVITY * delta * delta
-		if vz > 12.0 and g < ballistic - 0.25:
+		if vz > 12.0 * U and g < ballistic - 0.25 * U:
 			# Ground falls away faster than gravity: take off.
 			airborne = true
 			vz *= 0.95 - 0.04 * shocks
@@ -261,14 +264,14 @@ func physics_step(delta: float) -> void:
 func _land(g: float) -> void:
 	var impact := -vz
 	altitude = g
-	if impact > 45.0:
+	if impact > 45.0 * U:
 		vz = impact * (0.32 - 0.04 * shocks)
-		var loss := minf(0.3, impact * 0.0035 * (1.0 - 0.12 * shocks))
+		var loss := minf(0.3, impact / U * 0.0035 * (1.0 - 0.12 * shocks))
 		velocity *= 1.0 - loss
 		if is_player:
 			Audio.play("land", -4.0, randf_range(0.9, 1.1), 0.2)
 		_dust.restart()
-		if vz < 10.0:
+		if vz < 10.0 * U:
 			airborne = false
 			vz = 0.0
 	else:
@@ -293,52 +296,52 @@ func _effects(delta: float) -> void:
 	var sp := speed()
 	var on_dirt := not airborne and (surface == Track.Surface.DIRT or surface == Track.Surface.MUD)
 	var on_water := not airborne and surface == Track.Surface.WATER
-	_dust.emitting = (on_dirt and sp > 35.0) or (on_water and sp > 15.0)
+	_dust.emitting = (on_dirt and sp > 35.0 * U) or (on_water and sp > 15.0 * U)
 	if on_water:
 		_dust.color = Color8(170, 210, 250, 220)
-		if is_player and sp > 25.0:
+		if is_player and sp > 25.0 * U:
 			Audio.play("splash", -8.0, randf_range(0.9, 1.2), 0.35)
 	elif surface == Track.Surface.MUD:
 		_dust.color = Color8(80, 54, 30, 220)
 	else:
 		_dust.color = Color8(214, 170, 120, 200)
-	_dust.position = Vector2(0, -ground_h) - forward() * 6.0
+	_dust.position = Vector2(0, -ground_h) - forward() * 13.0
 	# Tire marks while sliding or spinning up.
 	_mark_timer -= delta
 	if on_dirt and _mark_timer <= 0.0 and race:
 		var slide := absf(velocity.dot(Vector2(-forward().y, forward().x)))
-		if slide > 14.0 or (in_throttle > 0.0 and sp < 20.0):
+		if slide > 14.0 * U or (in_throttle > 0.0 and sp < 20.0 * U):
 			_mark_timer = 0.03
-			var back := position - forward() * 5.0
-			var side := Vector2(-forward().y, forward().x) * 3.0
+			var back := position - forward() * 10.0
+			var side := Vector2(-forward().y, forward().x) * 6.0
 			race.add_mark(back + side, ground_h)
 			race.add_mark(back - side, ground_h)
 	if _engine:
-		_engine.pitch_scale = 0.7 + sp / 70.0 + (0.3 if nitro_time > 0.0 else 0.0)
+		_engine.pitch_scale = 0.7 + sp / (70.0 * U) + (0.3 if nitro_time > 0.0 else 0.0)
 
 
 func _update_visuals() -> void:
 	var frame := int(round(fposmod(heading, TAU) / TAU * HEADINGS)) % HEADINGS
 	var pitch_row := 0
 	if airborne:
-		if vz > 15.0:
+		if vz > 15.0 * U:
 			pitch_row = 1
-		elif vz < -15.0:
+		elif vz < -15.0 * U:
 			pitch_row = 2
 	else:
-		var slope := track.height_at(position + forward() * 4.0) - track.height_at(position - forward() * 4.0)
-		if slope > 2.0:
+		var slope := track.height_at(position + forward() * 10.0) - track.height_at(position - forward() * 10.0)
+		if slope > 4.8:
 			pitch_row = 1
-		elif slope < -2.0:
+		elif slope < -4.8:
 			pitch_row = 2
 	_body.frame = pitch_row * HEADINGS + frame
-	_body.position = Vector2(0, -altitude - 5.0)
-	_shadow.position = Vector2(0, -ground_h + 1.0)
+	_body.position = Vector2(0, -altitude - 9.0)
+	_shadow.position = Vector2(0, -ground_h + 2.0)
 	var air := altitude - ground_h
-	_shadow.scale = Vector2.ONE * clampf(1.0 - air * 0.02, 0.6, 1.0)
+	_shadow.scale = Vector2.ONE * clampf(1.0 - air * 0.02 / U, 0.6, 1.0)
 	_flame.visible = nitro_time > 0.0 and (Engine.get_physics_frames() / 2) % 2 == 0
 	if _flame.visible:
 		_flame.rotation = heading + PI
-		_flame.position = _body.position - forward() * 10.0
+		_flame.position = _body.position - forward() * 20.0
 	# Draw order: nearer to the bottom of the screen in front.
 	z_index = int(position.y)

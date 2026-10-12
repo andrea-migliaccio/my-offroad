@@ -18,17 +18,17 @@ config/icon="res://icon.png"
 
 [autoload]
 
-GameState="*res://autoload/game_state.gd"
 Audio="*res://autoload/audio.gd"
+GameState="*res://autoload/game_state.gd"
 
 [display]
 
-window/size/viewport_width=320
-window/size/viewport_height=240
-window/size/window_width_override=1280
-window/size/window_height_override=960
+window/size/viewport_width=960
+window/size/viewport_height=540
+window/size/window_width_override=1920
+window/size/window_height_override=1080
 window/stretch/mode="viewport"
-window/stretch/scale_mode="integer"
+window/stretch/scale_mode="fractional"
 
 [rendering]
 

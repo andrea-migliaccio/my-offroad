@@ -10,7 +10,7 @@ func _ready() -> void:
 	var failures := 0
 	var only := OS.get_environment("SIM_TRACK")
 	for id in Track.track_count():
-		if only != "" and int(only) != id:
+		if only != "" and not (str(id) in only.split(",")):
 			continue
 		for rev in [false, true]:
 			var race := Race.new()
@@ -37,7 +37,7 @@ func _ready() -> void:
 			var laps := []
 			for tr in race.ranking():
 				laps.append("%s:%d" % [tr.team, tr.lap])
-			var ok: bool = done[0] and max_off <= Track.HALF_WIDTH + 1.0
+			var ok: bool = done[0] and max_off <= Track.HALF_WIDTH - Truck.RADIUS + 1.0
 			if not ok:
 				failures += 1
 			print("%s %-16s %s time=%5.1fs race=%5.1fs off=%.1f air=%.1fs %s" % [

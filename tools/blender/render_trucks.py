@@ -1,4 +1,4 @@
-"""Render the off-road pickup truck from 32 headings x 3 pitches.
+"""Render the off-road pickup truck from 64 headings x 3 pitches.
 
 Run headless (no Blender UI needed):
   blender --background --factory-startup --python tools/blender/render_trucks.py -- --out <dir>
@@ -12,9 +12,9 @@ import math
 import os
 import sys
 
-HEADINGS = 32
+HEADINGS = 64
 PITCHES = [0.0, 14.0, -14.0]  # flat, nose up, nose down (degrees)
-RENDER_SIZE = 96
+RENDER_SIZE = 160
 CAM_ELEVATION = 55.0  # degrees above horizon
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []

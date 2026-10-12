@@ -36,14 +36,20 @@ var _cooldown := {}
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	for bus in ["Music", "SFX"]:
+		if AudioServer.get_bus_index(bus) < 0:
+			AudioServer.add_bus()
+			AudioServer.set_bus_name(AudioServer.bus_count - 1, bus)
 	for k in SFX:
 		_streams[k] = load(SFX[k])
 	for i in 10:
 		var p := AudioStreamPlayer.new()
+		p.bus = "SFX"
 		add_child(p)
 		_pool.append(p)
 	_music = AudioStreamPlayer.new()
 	_music.volume_db = -8.0
+	_music.bus = "Music"
 	add_child(_music)
 	_music.finished.connect(func(): _music.play())
 
@@ -57,8 +63,6 @@ func _process(delta: float) -> void:
 
 ## Plays an effect. `min_gap` prevents the same sound from stacking up.
 func play(sfx_name: String, volume_db := 0.0, pitch := 1.0, min_gap := 0.05) -> void:
-	if GameState.demo_mode and sfx_name != "menu_select":
-		return
 	if _cooldown.has(sfx_name) or not _streams.has(sfx_name):
 		return
 	_cooldown[sfx_name] = min_gap
@@ -80,6 +84,15 @@ func music(music_name: String) -> void:
 		return
 	_music.stream = load(MUSIC[music_name])
 	_music.play()
+
+
+## Volumes are linear 0..1.
+func set_volumes(music_linear: float, sfx_linear: float) -> void:
+	for pair in [["Music", music_linear], ["SFX", sfx_linear]]:
+		var i := AudioServer.get_bus_index(pair[0])
+		if i >= 0:
+			AudioServer.set_bus_volume_db(i, linear_to_db(maxf(pair[1], 0.0001)))
+			AudioServer.set_bus_mute(i, pair[1] <= 0.001)
 
 
 ## Returns a looping engine stream (shared resource).

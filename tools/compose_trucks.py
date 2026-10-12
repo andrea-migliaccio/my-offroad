@@ -2,15 +2,15 @@
 
   python tools/compose_trucks.py <render_dir> <out_dir>
 
-Sheet layout: 32 columns (headings) x 3 rows (flat, nose up, nose down), FRAME px each.
+Sheet layout: 64 columns (headings) x 3 rows (flat, nose up, nose down), FRAME px each.
 """
 import os
 import sys
 from PIL import Image
 
-HEADINGS = 32
+HEADINGS = 64
 PITCHES = 3
-FRAME = 24
+FRAME = 40
 
 TEAMS = {
     "red": [(96, 12, 12), (172, 24, 20), (228, 56, 40), (255, 140, 110)],
@@ -26,6 +26,17 @@ OUTLINE = (12, 8, 6, 255)
 
 def nearest(c, pal):
     return min(pal, key=lambda p: (p[0] - c[0]) ** 2 + (p[1] - c[1]) ** 2 + (p[2] - c[2]) ** 2)
+
+
+def ramp6(anchors):
+    """Stretch a dark->light 4-colour ramp to 6 tones."""
+    out = []
+    for i in range(6):
+        u = i * 3 / 5
+        a, b = anchors[int(u)], anchors[min(3, int(u) + 1)]
+        f = u - int(u)
+        out.append(tuple(round(a[k] + (b[k] - a[k]) * f) for k in range(3)))
+    return out
 
 
 def is_body(r, g, b):
@@ -47,7 +58,7 @@ def convert(im, ramp):
                 r, g, b = min(255, int(r * k)), min(255, int(g * k)), min(255, int(b * k))
             if is_body(r, g, b):
                 lum = max(r, b) / 255.0
-                idx = min(3, max(0, int(lum * 4.4) - 1))
+                idx = min(5, max(0, int(lum * 6.8) - 1))
                 po[x, y] = ramp[idx] + (255,)
             else:
                 po[x, y] = nearest((r, g, b), PALETTE) + (255,)
@@ -76,7 +87,7 @@ def main():
     for team, ramp in TEAMS.items():
         sheet = Image.new("RGBA", (FRAME * HEADINGS, FRAME * PITCHES), (0, 0, 0, 0))
         for (p, h), im in frames.items():
-            sheet.paste(convert(im, ramp), (h * FRAME, p * FRAME))
+            sheet.paste(convert(im, ramp6(ramp)), (h * FRAME, p * FRAME))
         sheet.save(os.path.join(dst, "truck_%s.png" % team))
         print("wrote", team)
 

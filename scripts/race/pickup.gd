@@ -17,7 +17,7 @@ var _t := 0.0
 func _ready() -> void:
 	_sprite = Sprite2D.new()
 	_sprite.texture = load("res://assets/sprites/money.png" if kind == Kind.MONEY else "res://assets/sprites/nitro.png")
-	_sprite.position = Vector2(0, -ground_h - 5.0)
+	_sprite.position = Vector2(0, -ground_h - 12.0)
 	add_child(_sprite)
 	z_index = int(position.y) - 2
 
@@ -25,7 +25,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	_life -= delta
-	_sprite.position.y = -ground_h - 5.0 - absf(sin(_t * 5.0)) * 2.0
+	_sprite.position.y = -ground_h - 12.0 - absf(sin(_t * 5.0)) * 5.0
 	visible = _life > 2.0 or int(_t * 10.0) % 2 == 0
 	if _life <= 0.0:
 		queue_free()
