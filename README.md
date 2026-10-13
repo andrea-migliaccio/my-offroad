@@ -24,6 +24,16 @@ The window opens at the largest whole-number scale that fits your screen; F11
 Driving keys can be remapped in Options > Controls. Menus work with arrows +
 Enter or with the mouse.
 
+## Two versions
+- `enhanced` (this branch): 960x540, PC menus, 16 tracks.
+- `main` (tag `v1.0-arcade`): the original 320x240 arcade-style version.
+
+Switch with `tools\switch_version.bat main` / `tools\switch_version.bat enhanced` (add `play` to start the game).
+Close Godot first. The script also reimports the assets: Godot's import cache (`.godot/`) is not in git, and
+without a reimport the other branch's sprites are used (trucks drawn twice, giant flagman).
+If you switch with plain `git switch`, run `Godot_..._console.exe --headless --path . --import` afterwards,
+or open the project in the editor once before pressing Play.
+
 ## Rules
 - 4 trucks, 3-5 laps (Options). The race ends when the first truck completes the last lap; everyone else is ranked by where they are, like the arcade.
 - Prize money: $150K / $100K / $50K / $0. Money bags and nitro cans appear on the track and are worth more on later laps.
