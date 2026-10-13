@@ -24,6 +24,20 @@ The window opens at the largest whole-number scale that fits your screen; F11
 Driving keys can be remapped in Options > Controls. Menus work with arrows +
 Enter or with the mouse.
 
+## Builds and releases
+GitHub Actions (`.github/workflows/release.yml`) exports Windows, Linux and Web builds with Godot 4.7.1:
+- push a tag starting with `v` (e.g. `git tag v2.0-enhanced && git push origin v2.0-enhanced`) to create a
+  GitHub Release with `SuperOffRoad-<tag>-windows.zip`, `-linux.tar.gz` and `-web.zip`, and to publish the
+  Web build on GitHub Pages;
+- or run it by hand from the Actions tab ("Build & Release" > Run workflow): builds as artifacts + Pages.
+
+GitHub Pages must be enabled once: Settings > Pages > Source: "GitHub Actions" (needs a public repo or a paid
+plan). Then Settings > Environments > github-pages > deployment branches and tags: allow `enhanced` and tags `v*`.
+
+Local export: install the 4.7.1 export templates in the editor, then
+`Godot_..._console.exe --headless --path . --export-release "Windows Desktop" build/windows/SuperOffRoad.exe`
+(presets: "Windows Desktop", "Linux", "Web").
+
 ## Two versions
 - `enhanced` (this branch): 960x540, PC menus, 16 tracks.
 - `main` (tag `v1.0-arcade`): the original 320x240 arcade-style version.

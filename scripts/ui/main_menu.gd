@@ -29,7 +29,8 @@ func _ready() -> void:
 	items.append(["NEW SEASON", func(): done.emit("name")])
 	items.append(["OPTIONS", func(): done.emit("options")])
 	items.append(["HALL OF FAME", func(): done.emit("hof")])
-	items.append(["QUIT", func(): get_tree().quit()])
+	if not OS.has_feature("web"):
+		items.append(["QUIT", func(): get_tree().quit()])
 	menu(items, 270, 380)
 	if GameState.has_career():
 		var cfg := ConfigFile.new()

@@ -186,6 +186,10 @@ func apply_settings() -> void:
 	Audio.set_volumes(music_volume, sfx_volume)
 	if DisplayServer.get_name() == "headless":
 		return
+	if OS.has_feature("web"):
+		# The browser owns the canvas size; only fullscreen can be toggled.
+		get_window().mode = Window.MODE_FULLSCREEN if fullscreen else Window.MODE_WINDOWED
+		return
 	var w := get_window()
 	if fullscreen:
 		w.mode = Window.MODE_FULLSCREEN

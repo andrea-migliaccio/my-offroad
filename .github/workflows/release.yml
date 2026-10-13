@@ -1,0 +1,114 @@
+name: Build & Release
+
+# Builds Windows, Linux and Web exports with Godot (headless, on Linux).
+#  - push a tag like v2.0-enhanced  -> GitHub Release with the zips + Web build on GitHub Pages
+#  - Actions tab > "Build & Release" > Run workflow -> builds (artifacts) and deploys Pages
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: "4.7.1"
+  GAME: SuperOffRoad
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot and export templates
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-${{ env.GODOT_VERSION }}-v1
+
+      - name: Install Godot and export templates
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          mkdir -p ~/godot
+          curl -sSL -o /tmp/godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          mv /tmp/godot/Godot_v${GODOT_VERSION}-stable_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+          tdir=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$tdir"
+          curl -sSL -o /tmp/templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          # Keep only the templates we use (the full set is >1 GB).
+          unzip -q /tmp/templates.tpz "templates/version.txt" "templates/windows_release_x86_64.exe" "templates/windows_release_x86_64_console.exe" \
+            "templates/linux_release.x86_64" "templates/web_nothreads_release.zip" -d /tmp/t
+          mv /tmp/t/templates/* "$tdir"/
+          ls -la "$tdir"
+
+      - name: Import project
+        run: |
+          echo "$HOME/godot" >> "$GITHUB_PATH"
+          ~/godot/godot --headless --path . --import || true
+
+      - name: Export
+        run: |
+          mkdir -p build/windows build/linux build/web
+          touch build/.gdignore
+          for p in "Windows Desktop:build/windows/${GAME}.exe" "Linux:build/linux/${GAME}.x86_64" "Web:build/web/index.html"; do
+            name="${p%%:*}"; out="${p#*:}"
+            echo "::group::Export $name"
+            ~/godot/godot --headless --path . --export-release "$name" "$out"
+            echo "::endgroup::"
+            test -s "$out" || { echo "::error::Export '$name' did not produce $out"; exit 1; }
+          done
+          ls -laR build
+
+      - name: Package
+        run: |
+          tag="${GITHUB_REF_NAME//\//-}"
+          mkdir -p dist
+          (cd build/windows && zip -q -r "../../dist/${GAME}-${tag}-windows.zip" .)
+          (cd build/linux && chmod +x ${GAME}.x86_64 && tar czf "../../dist/${GAME}-${tag}-linux.tar.gz" .)
+          (cd build/web && zip -q -r "../../dist/${GAME}-${tag}-web.zip" .)
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: builds
+          path: dist/*
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: export
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: builds
+          path: dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+
+  pages:
+    needs: export
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
